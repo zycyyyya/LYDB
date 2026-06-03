@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>陆家嘴国泰泰赢家2.0 — 利益演示工具</title>
+<script src="actuarial_data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f5f7fa;color:#333}
+.header{background:linear-gradient(135deg,#1a2a6c,#2952a3);color:#fff;padding:20px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.header h1{font-size:20px;font-weight:600}
+.header span{font-size:12px;opacity:.7}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+.panel{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:16px;overflow:hidden}
+.panel-header{padding:14px 20px;border-bottom:1px solid #eee;font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
+.panel-body{padding:20px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.form-group{display:flex;flex-direction:column;gap:4px;min-width:120px}
+.form-group label{font-size:12px;color:#666;font-weight:500}
+.form-group input,.form-group select{padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;outline:none}
+.form-group input:focus,.form-group select:focus{border-color:#2952a3}
+.btn{padding:10px 20px;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-weight:500;transition:all .2s}
+.btn-primary{background:#2952a3;color:#fff}.btn-primary:hover{background:#1a3a7a}
+.btn-outline{background:#fff;border:1px solid #2952a3;color:#2952a3}.btn-outline:hover{background:#f0f4ff}
+.btn-compare{background:#e74c3c;color:#fff}.btn-compare:hover{background:#c0392b}
+.summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.card{background:#f8f9fb;padding:12px 14px;border-radius:8px;border:1px solid #eee}
+.card .label{font-size:11px;color:#888}.card .value{font-size:18px;font-weight:700;color:#1a2a6c;margin:4px 0}
+.card .sub{font-size:11px;color:#999}
+.irr-bar{display:flex;align-items:center;gap:8px;margin:4px 0}
+.irr-bar .tag{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500}
+.irr-bar .tag.bonus{background:#fff3e0;color:#e67e22}
+.irr-bar .val{font-size:18px;font-weight:700}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chart-box{position:relative;height:340px}
+.chart-box.full{grid-column:1/-1;height:380px}
+.scroll-table{max-height:500px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:#f8f9fb;padding:8px 6px;text-align:right;font-weight:600;color:#555;border-bottom:2px solid #ddd;position:sticky;top:0;z-index:1;white-space:nowrap}
+thead th:first-child,tbody td:first-child{text-align:center}
+tbody td{padding:7px 6px;text-align:right;border-bottom:1px solid #f0f0f0}
+tbody tr:hover{background:#f8f9ff}
+.highlight{background:#fff9e6!important}
+.num{font-variant-numeric:tabular-nums;font-family:"SF Mono","Consolas",monospace}
+.loading{text-align:center;padding:40px;color:#999}
+.error{color:#e74c3c;padding:12px;background:#fdeaea;border-radius:6px;margin:12px 0}
+@media(max-width:768px){.chart-row{grid-template-columns:1fr}.container{padding:10px}.form-row{gap:8px}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div><h1>陆家嘴国泰泰赢家2.0（分红型）</h1><span>终身寿险 · 利益演示与对比工具</span></div>
+  <span style="font-size:11px">基于精算模型 | 仅供学习参考</span>
+</div>
+
+<div class="container">
+  <div class="panel">
+    <div class="panel-header">📋 方案A</div>
+    <div class="panel-body">
+      <div class="form-row">
+        <div class="form-group"><label>投保年龄</label><input type="number" id="age" value="41" min="0" max="70"></div>
+        <div class="form-group"><label>性别</label><select id="sex"><option value="1">男</option><option value="2" selected>女</option></select></div>
+        <div class="form-group"><label>交费年期</label><select id="pmtP"><option value="1">趸交</option><option value="3">3年</option><option value="5" selected>5年</option><option value="10">10年</option></select></div>
+        <div class="form-group"><label>年交保费 (¥)</label><input type="number" id="premium" value="100000" min="5000" step="1000"></div>
+        <div class="form-group"><label>演示红利率</label><input type="number" id="adRM" value="0.039" min="0" max="0.1" step="0.001"></div>
+        <div class="form-group"><label>演示至年龄</label><input type="number" id="maxAge" value="105" min="65" max="105"></div>
+        <div class="form-group" style="align-self:flex-end"><button class="btn btn-primary" onclick="calc()">计算利益</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="comparePanel" style="display:none">
+    <div class="panel-header" style="color:#e74c3c">🔀 方案B</div>
+    <div class="panel-body">
+      <div class="form-row">
+        <div class="form-group"><label>投保年龄</label><input type="number" id="age2" value="0" min="0" max="70"></div>
+        <div class="form-group"><label>性别</label><select id="sex2"><option value="1">男</option><option value="2" selected>女</option></select></div>
+        <div class="form-group"><label>交费年期</label><select id="pmtP2"><option value="1">趸交</option><option value="3">3年</option><option value="5">5年</option><option value="10" selected>10年</option></select></div>
+        <div class="form-group"><label>年交保费 (¥)</label><input type="number" id="premium2" value="100000" min="5000" step="1000"></div>
+        <div class="form-group"><label>演示红利率</label><input type="number" id="adRM2" value="0.039" step="0.001"></div>
+        <div class="form-group" style="align-self:flex-end"><button class="btn btn-compare" onclick="calc2()">计算对比</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn btn-outline" onclick="toggleCmp()">+ 添加对比方案</button>
+    <span style="font-size:12px;color:#999;align-self:center" id="status">就绪</span>
+  </div>
+
+  <div id="result"></div>
+</div>
+
+<script>
+const SA_UNIT=0.01, SA_GROWTH=0.02, DIV_RATIO=0.70;
+
+function L(table,sex,PmtP,age,pass_yr){
+  const d=window.__LU[table];
+  return d[sex+'-'+PmtP+'-'+age+'-'+pass_yr]||0;
+}
+
+function calcBenefit(age,sex,pmtP,premium,adRL=0.0175,adRM=0.039,maxAge=105){
+  const saRatio=L('sa_ratio',sex,pmtP,age,0);
+  const saBasic=Math.round(premium*saRatio/100*10)/10;
+  const maxYr=maxAge-age;
+  const rows=[];
+  let cumPrem=0, cumBonus=0;
+
+  for(let t=1;t<=maxYr;t++){
+    const curAge=age+t;
+    const prem=t<=pmtP?premium:0;
+    cumPrem+=prem;
+    const saDisp=Math.round(saBasic*Math.pow(1+SA_GROWTH,t-1)*10)/10;
+
+    const cvF=L('cv',sex,pmtP,age,t);
+    const dbF=L('db',sex,pmtP,age,t);
+    const rvF=L('rv',sex,pmtP,age,t);
+    const vnpF=t<=pmtP?L('vnp',sex,pmtP,age,t):0;
+    const rvPvfb=L('rv_pvfb',sex,pmtP,age,t);
+    const cvPvfb=L('cv_pvfb',sex,pmtP,age,t);
+    const bnsDbF=L('bonus_db',sex,pmtP,age,t);
+    const prevRV=L('rv',sex,pmtP,age,Math.max(0,t-1));
+    const prevRVPvfb=L('rv_pvfb',sex,pmtP,age,Math.max(0,t-1));
+
+    const gCV=Math.round(cvF*saBasic/SA_UNIT*10)/10;
+    const gDB=Math.max(Math.round(dbF*saBasic/SA_UNIT*10)/10,gCV);
+
+    const vnpTerm=pmtP===1?0:vnpF;
+    const yrDiv=Math.round(((prevRV+vnpTerm)*saBasic/SA_UNIT+cumBonus*prevRVPvfb/SA_UNIT)*(adRM-adRL)*DIV_RATIO*10)/10;
+
+    let bnsFaceInc=0;
+    if(rvPvfb>0) bnsFaceInc=Math.round(yrDiv/rvPvfb*SA_UNIT*10)/10;
+    cumBonus+=bnsFaceInc;
+
+    const bnsCV=Math.round(cumBonus*cvPvfb/SA_UNIT*10)/10;
+    const bnsDB=Math.max(Math.round(bnsDbF*cumBonus/SA_UNIT*10)/10,bnsCV);
+
+    rows.push({
+      year:t,age:curAge,premium:prem,cum_premium:Math.round(cumPrem),
+      sa_basic:saBasic,sa_display:saDisp,
+      guaranteed_cv:gCV,guaranteed_db:gDB,
+      annual_dividend:yrDiv,bonus_face_inc:bnsFaceInc,
+      cum_bonus_face:Math.round(cumBonus*10)/10,
+      bonus_db:bnsDB,bonus_cv:bnsCV,
+      total_db:gDB+bnsDB,total_cv:gCV+bnsCV
+    });
+  }
+  return {sa_basic:saBasic,entry_age:age,sex,pmt_p:pmtP,annual_premium:premium,rows};
+}
+
+function npvAt(rate,cfs){
+  let s=cfs[0];
+  for(let j=1;j<cfs.length;j++) s+=cfs[j]/Math.pow(1+rate,j);
+  return s;
+}
+
+function calcIRR(rows,premium,pmtP){
+  const d=[];
+  for(let i=0;i<rows.length;i++){
+    const yrs=i+1;
+    if(yrs<2){d.push({year:rows[i].year,irr:null});continue;}
+    const cfs=[];
+    for(let y=0;y<yrs;y++) cfs.push(y<pmtP?-premium:0);
+    cfs[cfs.length-1]+=rows[i].total_cv;
+    let lo=-0.999,hi=2.0;
+    const fLo=npvAt(lo,cfs),fHi=npvAt(hi,cfs);
+    if(fLo*fHi>0){d.push({year:rows[i].year,irr:null});continue;}
+    for(let it=0;it<60;it++){
+      const mid=(lo+hi)/2,fMid=npvAt(mid,cfs);
+      if(Math.abs(fMid)<1e-6){lo=hi=mid;break}
+      if(fLo*fMid<0)hi=mid;else lo=mid;
+      if(hi-lo<1e-10)break;
+    }
+    let rate=(lo+hi)/2;
+    for(let it=0;it<30;it++){
+      let npv=cfs[0],dnpv=0;
+      for(let j=1;j<cfs.length;j++){
+        const d=Math.pow(1+rate,j);
+        npv+=cfs[j]/d; dnpv+=-j*cfs[j]/Math.pow(1+rate,j+1);
+      }
+      if(Math.abs(dnpv)<1e-15)break;
+      const nr=rate-npv/dnpv;
+      if(Math.abs(nr-rate)<1e-10){rate=nr;break}
+      rate=nr;
+    }
+    const irr=rate*100;
+    d.push({year:rows[i].year,irr:isFinite(irr)?irr:null});
+  }
+  return d;
+}
+
+function fmt(n,d=0){if(n==null)return'-';return Number(n).toLocaleString('zh-CN',{minimumFractionDigits:d,maximumFractionDigits:d})}
+
+let dataA=null,dataB=null,charts=[];
+
+function calc(){
+  document.getElementById('status').textContent='计算中...';
+  const a=+age.value,s=+sex.value,p=+pmtP.value,pr=+premium.value,rm=+adRM.value,ma=+maxAge.value;
+  dataA=calcBenefit(a,s,p,pr,0.0175,rm,ma);
+  document.getElementById('status').textContent='完成';
+  render(dataA,'result'); dataB=null;
+}
+
+function calc2(){
+  const a=+age2.value,s=+sex2.value,p=+pmtP2.value,pr=+premium2.value,rm=+adRM2.value,ma=+maxAge.value;
+  dataB=calcBenefit(a,s,p,pr,0.0175,rm,ma);
+  document.getElementById('status').textContent='对比完成';
+  renderCompare();
+}
+
+function toggleCmp(){
+  const p=document.getElementById('comparePanel');
+  p.style.display=p.style.display==='none'?'block':'none';
+  document.querySelector('.btn.btn-outline').textContent=p.style.display==='none'?'+ 添加对比方案':'− 隐藏对比方案';
+  if(p.style.display==='none'){dataB=null;if(dataA)render(dataA,'result')}
+}
+
+function render(d,target){
+  const p=d,r=d.rows,irrData=calcIRR(r,p.annual_premium,p.pmt_p);
+
+  // milestones
+  let be='—',db2='—';
+  for(const row of r){if(be==='—'&&row.total_cv>=row.cum_premium)be=row.year;if(db2==='—'&&row.total_cv>=row.cum_premium*2)db2=row.year;}
+
+  let html='';
+  html+=`<div class="summary-cards">
+    <div class="card"><div class="label">基本保额</div><div class="value">${fmt(p.sa_basic,1)}</div><div class="sub">年交${fmt(p.annual_premium)} × ${p.pmt_p===1?'趸':'年'}</div></div>
+    <div class="card"><div class="label">累计保费</div><div class="value">${fmt(p.annual_premium*p.pmt_p)}</div><div class="sub">${p.pmt_p===1?'趸交':p.pmt_p+'年交'}</div></div>
+    <div class="card"><div class="label">回本年份</div><div class="value">第${be}年</div><div class="sub">总现金价值≥累计保费</div></div>
+    <div class="card"><div class="label">翻倍年份</div><div class="value">第${db2}年</div><div class="sub">总现金价值≥2倍累计保费</div></div>
+  </div>`;
+
+  html+='<div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap">';
+  [10,20,30,40].forEach(yr=>{
+    const ir=irrData.find(x=>x.year===yr);
+    if(ir&&ir.irr!=null&&ir.irr>=0){
+      html+=`<div class="irr-bar"><span class="tag bonus">含红利</span><span>第${yr}年 IRR:</span><span class="val" style="color:${ir.irr>3?'#27ae60':ir.irr>2?'#e67e22':'#999'}">${ir.irr.toFixed(2)}%</span></div>`;
+    }
+  });
+  html+='</div>';
+
+  html+=`<div class="chart-row"><div class="chart-box"><canvas id="cCV"></canvas></div><div class="chart-box"><canvas id="cDB"></canvas></div></div>`;
+  html+=`<div class="chart-row"><div class="chart-box full"><canvas id="cIRR"></canvas></div></div>`;
+
+  // Table
+  const showYrs=[1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,50,60,70,80,90];
+  html+=`<div class="panel"><div class="panel-header">📊 利益演示明细表 <span style="font-weight:400;font-size:12px;color:#999">（金额单位：元）</span></div><div class="scroll-table"><table><thead><tr>
+    <th>年度</th><th>年龄</th><th>年保费</th><th>累计保费</th><th>保额</th>
+    <th>保证<br>身故金</th><th>保证<br>现金价值</th>
+    <th>当年度<br>红利</th><th>累积<br>红利保额</th>
+    <th>红利<br>身故金</th><th>红利<br>现金价值</th>
+    <th>总身故金</th><th>总现金价值</th><th>IRR</th>
+  </tr></thead><tbody>`;
+
+  for(const row of r){
+    if(!showYrs.includes(row.year)&&row.year>10&&row.year%5!==0)continue;
+    const ir=irrData.find(x=>x.year===row.year);
+    const irrVal=(ir&&ir.irr!=null&&ir.irr>=0)?ir.irr.toFixed(2)+'%':'-';
+    const irrNum=(ir&&ir.irr!=null&&ir.irr>=0)?ir.irr:0;
+    html+=`<tr${row.year%10===0?' class="highlight"':''}>
+      <td>${row.year}</td><td>${row.age}</td>
+      <td class="num">${fmt(row.premium)}</td><td class="num">${fmt(row.cum_premium)}</td><td class="num">${fmt(row.sa_display,1)}</td>
+      <td class="num">${fmt(row.guaranteed_db)}</td><td class="num" style="color:#2952a3;font-weight:600">${fmt(row.guaranteed_cv)}</td>
+      <td class="num">${fmt(row.annual_dividend)}</td><td class="num">${fmt(row.cum_bonus_face)}</td>
+      <td class="num">${fmt(row.bonus_db)}</td><td class="num" style="color:#e67e22">${fmt(row.bonus_cv)}</td>
+      <td class="num">${fmt(row.total_db)}</td><td class="num" style="color:#1a2a6c;font-weight:700">${fmt(row.total_cv)}</td>
+      <td class="num" style="color:${irrNum>3?'#27ae60':'#666'}">${irrVal}</td>
+    </tr>`;
+  }
+  html+='</tbody></table></div></div>';
+  document.getElementById(target).innerHTML=html;
+
+  setTimeout(()=>drawCharts(r,irrData),100);
+}
+
+function drawCharts(rows,irrData){
+  charts.forEach(c=>c.destroy()); charts=[];
+  const labels=rows.filter(r=>r.year<=30||r.year%5===0).map(r=>r.year);
+  const fr=rows.filter(r=>r.year<=30||r.year%5===0);
+
+  charts.push(new Chart(document.getElementById('cCV'),{type:'line',data:{labels,datasets:[
+    {label:'累计保费',data:fr.map(r=>r.cum_premium),borderColor:'#999',borderDash:[5,5],fill:false,tension:.3},
+    {label:'保证现金价值',data:fr.map(r=>r.guaranteed_cv),borderColor:'#2952a3',backgroundColor:'rgba(41,82,163,.1)',fill:true,tension:.3},
+    {label:'总现金价值(含红利)',data:fr.map(r=>r.total_cv),borderColor:'#e67e22',backgroundColor:'rgba(230,126,34,.1)',fill:true,tension:.3}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'现金价值走势',font:{size:14}}},scales:{y:{ticks:{callback:v=>fmt(v/10000)+'万'}}}}}));
+
+  charts.push(new Chart(document.getElementById('cDB'),{type:'line',data:{labels,datasets:[
+    {label:'保证身故金',data:fr.map(r=>r.guaranteed_db),borderColor:'#2952a3',fill:false,tension:.3},
+    {label:'总身故金(含红利)',data:fr.map(r=>r.total_db),borderColor:'#e74c3c',fill:false,tension:.3},
+    {label:'总现金价值(含红利)',data:fr.map(r=>r.total_cv),borderColor:'#e67e22',borderDash:[3,3],fill:false,tension:.3}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'身故保险金 vs 现金价值',font:{size:14}}},scales:{y:{ticks:{callback:v=>fmt(v/10000)+'万'}}}}}));
+
+  const ic=irrData.filter(r=>r.irr!=null&&r.irr>=0);
+  charts.push(new Chart(document.getElementById('cIRR'),{type:'line',data:{labels:ic.map(r=>r.year),datasets:[
+    {label:'IRR(含红利)',data:ic.map(r=>r.irr),borderColor:'#e67e22',backgroundColor:'rgba(230,126,34,.1)',fill:true,tension:.3}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'内部收益率(IRR)',font:{size:14}},tooltip:{callbacks:{label:ctx=>'IRR: '+Number(ctx.raw).toFixed(2)+'%'}}},scales:{y:{ticks:{callback:v=>Number(v).toFixed(1)+'%'}},x:{title:{display:true,text:'保单年度'}}}}}));
+}
+
+function renderCompare(){
+  if(!dataA||!dataB)return;
+  render(dataA,'result');
+  const r1=dataA.rows,r2=dataB.rows,p1=dataA,p2=dataB;
+  const maxYr=Math.min(r1.length,r2.length);
+  let html=`<div class="panel" style="border-left:3px solid #e74c3c"><div class="panel-header" style="color:#e74c3c">🔀 方案对比</div>`;
+  html+=`<div class="panel-body"><div class="summary-cards">`;
+  html+=`<div class="card"><div class="label">方案A</div><div class="value">${p1.entry_age}岁 ${p1.sex===1?'男':'女'} ${p1.pmt_p===1?'趸':p1.pmt_p+'年'}</div><div class="sub">年保费${fmt(p1.annual_premium)} · 保额${fmt(p1.sa_basic,1)}</div></div>`;
+  html+=`<div class="card"><div class="label">方案B</div><div class="value">${p2.entry_age}岁 ${p2.sex===1?'男':'女'} ${p2.pmt_p===1?'趸':p2.pmt_p+'年'}</div><div class="sub">年保费${fmt(p2.annual_premium)} · 保额${fmt(p2.sa_basic,1)}</div></div></div>`;
+  html+=`<div class="chart-row"><div class="chart-box full"><canvas id="cCmp"></canvas></div></div>`;
+  html+=`<div class="scroll-table"><table><thead><tr><th>年度</th><th colspan="2">方案A·总现金价值</th><th colspan="2">方案B·总现金价值</th><th>差额</th></tr><tr style="font-size:11px"><th></th><th>保证</th><th>含红利</th><th>保证</th><th>含红利</th><th>含红利差额</th></tr></thead><tbody>`;
+  const sy=[1,2,3,4,5,10,15,20,25,30,35,40,50,60,70,80];
+  for(const yr of sy){if(yr>maxYr)break;const a=r1[yr-1],b=r2[yr-1];if(!a||!b)continue;const diff=a.total_cv-b.total_cv;
+    html+=`<tr${yr%10===0?' class="highlight"':''}><td>${yr}</td>
+    <td class="num" style="color:#2952a3">${fmt(a.guaranteed_cv)}</td><td class="num" style="font-weight:600;color:#1a2a6c">${fmt(a.total_cv)}</td>
+    <td class="num" style="color:#2952a3">${fmt(b.guaranteed_cv)}</td><td class="num" style="font-weight:600;color:#1a2a6c">${fmt(b.total_cv)}</td>
+    <td class="num" style="color:${diff>=0?'#27ae60':'#e74c3c'};font-weight:600">${diff>=0?'+':''}${fmt(diff)}</td></tr>`;}
+  html+=`</tbody></table></div></div></div>`;
+  document.getElementById('result').innerHTML+=html;
+
+  setTimeout(()=>{
+    const lb=r1.filter((_,i)=>i<30||(i+1)%5===0).map(r=>r.year);
+    charts.push(new Chart(document.getElementById('cCmp'),{type:'line',data:{labels:lb,datasets:[
+      {label:`方案A:${p1.entry_age}岁${p1.sex===1?'男':'女'} ${p1.pmt_p===1?'趸':p1.pmt_p+'年'} ${fmt(p1.annual_premium/10000,1)}万`,data:r1.filter((_,i)=>i<30||(i+1)%5===0).map(r=>r.total_cv),borderColor:'#2952a3',backgroundColor:'rgba(41,82,163,.1)',fill:true,tension:.3},
+      {label:`方案B:${p2.entry_age}岁${p2.sex===1?'男':'女'} ${p2.pmt_p===1?'趸':p2.pmt_p+'年'} ${fmt(p2.annual_premium/10000,1)}万`,data:r2.filter((_,i)=>i<30||(i+1)%5===0).map(r=>r.total_cv),borderColor:'#e74c3c',backgroundColor:'rgba(231,76,60,.1)',fill:true,tension:.3}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'方案对比：总现金价值(含红利)',font:{size:14}}},scales:{y:{ticks:{callback:v=>fmt(v/10000)+'万'}}}}}));
+  },100);
+}
+
+// Init
+calc();
+</script>
+</body>
+</html>
