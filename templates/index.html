@@ -245,7 +245,11 @@ function render(d,target){
   html+=`<div class="chart-row"><div class="chart-box full"><canvas id="cIRR"></canvas></div></div>`;
 
   // Table
-  const showYrs=[1,2,3,4,5,6,7,8,9,10,15,20,25,30,35,40,50,60,70,80,90];
+  // 动态生成展示年份：前10年全显示，之后每5年一跳
+  const showYrs=new Set();
+  for(const row of r){
+    if(row.year<=10||row.year%5===0||row.year===r.length)showYrs.add(row.year);
+  }
   html+=`<div class="panel"><div class="panel-header">📊 利益演示明细表 <span style="font-weight:400;font-size:12px;color:#999">（金额单位：元）</span></div><div class="scroll-table"><table><thead><tr>
     <th>年度</th><th>年龄</th><th>年保费</th><th>累计保费</th><th>保额</th>
     <th>保证<br>身故金</th><th>保证<br>现金价值</th>
@@ -255,7 +259,7 @@ function render(d,target){
   </tr></thead><tbody>`;
 
   for(const row of r){
-    if(!showYrs.includes(row.year)&&row.year>10&&row.year%5!==0)continue;
+    if(!showYrs.has(row.year)&&row.year>10&&row.year%5!==0)continue;
     const ir=irrData.find(x=>x.year===row.year);
     const irrVal=(ir&&ir.irr!=null&&ir.irr>=0)?ir.irr.toFixed(2)+'%':'-';
     const irrNum=(ir&&ir.irr!=null&&ir.irr>=0)?ir.irr:0;
@@ -277,8 +281,10 @@ function render(d,target){
 
 function drawCharts(rows,irrData){
   charts.forEach(c=>c.destroy()); charts=[];
-  const labels=rows.filter(r=>r.year<=30||r.year%5===0).map(r=>r.year);
-  const fr=rows.filter(r=>r.year<=30||r.year%5===0);
+  const chartYrs=new Set();
+  for(const row of rows){if(row.year<=30||row.year%5===0)chartYrs.add(row.year);}
+  const labels=rows.filter(r=>chartYrs.has(r.year)).map(r=>r.year);
+  const fr=rows.filter(r=>chartYrs.has(r.year));
 
   charts.push(new Chart(document.getElementById('cCV'),{type:'line',data:{labels,datasets:[
     {label:'累计保费',data:fr.map(r=>r.cum_premium),borderColor:'#999',borderDash:[5,5],fill:false,tension:.3},
@@ -319,10 +325,14 @@ function renderCompare(){
   document.getElementById('result').innerHTML+=html;
 
   setTimeout(()=>{
-    const lb=r1.filter((_,i)=>i<30||(i+1)%5===0).map(r=>r.year);
+    const maxL=Math.max(r1.length,r2.length);
+    const cmpFilter=i=>i<30||(i+1)%5===0||i===maxL-1;
+    const lb=r1.filter((_,i)=>cmpFilter(i)).map(r=>r.year);
+    const d1=r1.filter((_,i)=>cmpFilter(i)).map(r=>r.total_cv);
+    const d2=r2.slice(0,r1.length).filter((_,i)=>cmpFilter(i)).map(r=>r.total_cv);
     charts.push(new Chart(document.getElementById('cCmp'),{type:'line',data:{labels:lb,datasets:[
-      {label:`方案A:${p1.entry_age}岁${p1.sex===1?'男':'女'} ${p1.pmt_p===1?'趸':p1.pmt_p+'年'} ${fmt(p1.annual_premium/10000,1)}万`,data:r1.filter((_,i)=>i<30||(i+1)%5===0).map(r=>r.total_cv),borderColor:'#2952a3',backgroundColor:'rgba(41,82,163,.1)',fill:true,tension:.3},
-      {label:`方案B:${p2.entry_age}岁${p2.sex===1?'男':'女'} ${p2.pmt_p===1?'趸':p2.pmt_p+'年'} ${fmt(p2.annual_premium/10000,1)}万`,data:r2.filter((_,i)=>i<30||(i+1)%5===0).map(r=>r.total_cv),borderColor:'#e74c3c',backgroundColor:'rgba(231,76,60,.1)',fill:true,tension:.3}
+      {label:`方案A:${p1.entry_age}岁${p1.sex===1?'男':'女'} ${p1.pmt_p===1?'趸':p1.pmt_p+'年'} ${fmt(p1.annual_premium/10000,1)}万`,data:d1,borderColor:'#2952a3',backgroundColor:'rgba(41,82,163,.1)',fill:true,tension:.3},
+      {label:`方案B:${p2.entry_age}岁${p2.sex===1?'男':'女'} ${p2.pmt_p===1?'趸':p2.pmt_p+'年'} ${fmt(p2.annual_premium/10000,1)}万`,data:d2,borderColor:'#e74c3c',backgroundColor:'rgba(231,76,60,.1)',fill:true,tension:.3}
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'方案对比：总现金价值(含红利)',font:{size:14}}},scales:{y:{ticks:{callback:v=>fmt(v/10000)+'万'}}}}}));
   },100);
 }

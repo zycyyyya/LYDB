@@ -57,7 +57,7 @@ class InsuranceCalculator:
         return float(row[col]) if row and row[col] is not None else 0.0
 
     def calc_benefit(self, entry_age, sex, pmt_p, annual_premium,
-                     ad_r_l=0.0175, ad_r_m=0.039, max_display=105):
+                     ad_r_l=0.0175, ad_r_m=0.039, max_display=None):
         """
         计算完整利益演示
 
@@ -68,7 +68,10 @@ class InsuranceCalculator:
             annual_premium:  年交保费（元）
             ad_r_l:          年度红利率-低档 (default 0.0175)
             ad_r_m:          年度红利率-中档 (default 0.039)
-            max_display:     演示终止年龄 (default 105)
+            max_display:     演示终止年龄 (None=自动检测数据上限, 或指定如105)
+
+        自动检测:
+            如果 max_display 为 None，根据数据库实际有的数据范围自动确定最大年限
 
         返回:
             dict:
@@ -106,6 +109,14 @@ class InsuranceCalculator:
         # 保额保费比
         sa_ratio = self.lookup("sa_ratio", "sa_per_premium", sex, pmt_p, entry_age, 0)
         sa_basic = round(annual_premium * sa_ratio / 100, 1)
+
+        # 自动检测数据范围
+        if max_display is None:
+            row_count = self.conn.execute(
+                "SELECT MAX(pass_yr) FROM cv WHERE sex=? AND PmtP=? AND age=?",
+                (sex, pmt_p, entry_age)
+            ).fetchone()[0]
+            max_display = (entry_age + int(row_count)) if row_count else 105
 
         max_year = max_display - entry_age
         rows = []
