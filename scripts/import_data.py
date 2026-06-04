@@ -15,7 +15,7 @@
 
 import sqlite3, pandas as pd, os, json, sys, re
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "actuarial.db")
+DB_PATH = os.path.join(os.getcwd(), "actuarial.db")
 
 # === 手动配置区（--auto 模式下忽略） ===
 PRODUCT_IDS = []  # 留空 = 不过滤产品。也可填 ["PROD_A","PROD_B"]

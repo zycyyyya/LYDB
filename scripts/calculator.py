@@ -14,7 +14,7 @@
 
 import sqlite3, os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "actuarial.db")
+DB_PATH = os.path.join(os.getcwd(), "actuarial.db")
 SA_UNIT = 0.01          # 保额单位
 SA_GROWTH = 0.02        # 保额年增长率（仅展示用）
 DIVIDEND_RATIO = 0.70   # 红利分配比例

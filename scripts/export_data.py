@@ -10,8 +10,8 @@ SQLite → JavaScript 数据导出
 
 import sqlite3, json, os
 
-DB = os.path.join(os.path.dirname(__file__), "actuarial.db")
-OUT = os.path.join(os.path.dirname(__file__), "..", "static", "actuarial_data.js")
+DB = os.path.join(os.getcwd(), "actuarial.db")
+OUT = os.path.join(os.getcwd(), "static", "actuarial_data.js")
 
 # 需要导出的表及其值列名
 TABLES = {

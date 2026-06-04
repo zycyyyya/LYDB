@@ -19,7 +19,7 @@
 import sqlite3, os
 import pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "zhongyi.db")
+DB_PATH = os.path.join(os.getcwd(), "zhongyi.db")
 SA_GROWTH = 0.0175  # 中意 SA 年增长率
 
 def import_zhongyi(excel_path, product_name=""):

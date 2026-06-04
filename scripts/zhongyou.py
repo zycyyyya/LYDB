@@ -7,7 +7,7 @@
 
 import sqlite3, os, pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "zhongyou.db")
+DB_PATH = os.path.join(os.getcwd(), "zhongyou.db")
 DIV_RATE = 0.01575   # 红利利差 1.575%
 SA_GROWTH = 0.02       # 中邮保额年增长2%
 

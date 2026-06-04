@@ -2,6 +2,32 @@
 
 > 将保险公司精算 Excel 转化为可在线对比的交互式网页工具，5 步全流程。
 
+## 快速开始
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/zycyyyya/LYDB.git
+cd LYDB
+
+# 2. 安装依赖（推荐虚拟环境）
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install pandas openpyxl flask
+
+# 3. 将你的产品 Excel 放到项目根目录
+
+# 4. 运行（所有脚本从项目根目录执行，数据库会创建在当前目录）
+# 通用产品（泰赢家类）:
+python scripts/import_data.py 你的产品.xlsx --auto
+python scripts/app.py
+# 中意系列:
+python scripts/zhongyi.py 你的产品.xlsx 甄享版
+# 中邮:
+python scripts/zhongyou.py 你的产品.xlsx
+# 中英:
+python scripts/zhongying.py 你的产品.xlsx
+```
+
 ## 适用场景
 
 - 你有一份分红型/万能型终身寿险的**精算利益演示 Excel**（含 CV、DB、红利等精算表）
