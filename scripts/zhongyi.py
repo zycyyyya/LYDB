@@ -128,6 +128,13 @@ class ZhongyiCalculator:
         ).fetchone()
         return float(r[0]) if r else 0.0
 
+    def lookup_gp(self, product_code):
+        r = self.conn.execute(
+            "SELECT gp FROM premium_cv WHERE code=? AND year=1 LIMIT 1",
+            (product_code,)
+        ).fetchone()
+        return float(r[0]) if r else 0.0
+
     def lookup_bonus(self, pay_term, age, sex, pass_yr, product):
         r = self.conn.execute(
             "SELECT bonus_sa, bonus_cv FROM bonus WHERE pay_term=? AND age=? AND sex=? AND pass_yr=? AND product=? LIMIT 1",
@@ -135,19 +142,53 @@ class ZhongyiCalculator:
         ).fetchone()
         return (float(r[0]), float(r[1])) if r else (0.0, 0.0)
 
-    def calc_benefit(self, entry_age, sex, pay_term, annual_premium, sa_basic,
-                     product_code, product_name, max_display=None):
+    def list_codes(self, product_name=None):
+        """列出可用产品代码及其GP"""
+        q = "SELECT DISTINCT code, product, gp FROM premium_cv WHERE year=1"
+        if product_name:
+            q += " AND product=?"
+            rows = self.conn.execute(q, (product_name,)).fetchall()
+        else:
+            rows = self.conn.execute(q).fetchall()
+        return [(r[0], r[1], float(r[2])) for r in rows]
+
+    def find_code(self, product_name):
+        """自动查找产品代码（取第一个）"""
+        r = self.conn.execute(
+            "SELECT code FROM premium_cv WHERE product=? LIMIT 1",
+            (product_name,)
+        ).fetchone()
+        return r[0] if r else None
+
+    def calc_sa_basic(self, product_code, annual_premium):
+        """从保费反算基本保额: SA = premium × 1000 / GP"""
+        gp = self.lookup_gp(product_code)
+        return round(annual_premium * 1000 / gp, 0) if gp > 0 else 0
+
+    def calc_benefit(self, entry_age, sex, pay_term, annual_premium,
+                     product_code=None, product_name=None, sa_basic=None, max_display=None):
         """
         参数:
             entry_age:      投保年龄
             sex:            1=男, 2=女
             pay_term:       交费年期 (1/3/5/6/10)
             annual_premium: 年交保费
-            sa_basic:       基本保额 (需手动输入或用GP反算)
-            product_code:   产品代码 (如 BJ8125CF, AT7330CM)
-            product_name:   产品名称标签 (甄享版/福享版)
-            max_display:    演示年限 (None=自动)
+            product_code:   产品代码 (如 BJ8125CF); None=自动查找
+            product_name:   产品名称标签; None=取第一个
+            sa_basic:       基本保额; None=自动从GP反算
         """
+        # 自动查找产品代码和名称
+        if product_name is None:
+            r = self.conn.execute("SELECT DISTINCT product FROM premium_cv LIMIT 1").fetchone()
+            product_name = r[0] if r else None
+        if product_code is None and product_name:
+            product_code = self.find_code(product_name)
+        if not product_code:
+            raise ValueError("无法找到产品代码，请指定 product_code 或确认已导入数据")
+
+        # 从保费反算保额
+        if sa_basic is None:
+            sa_basic = self.calc_sa_basic(product_code, annual_premium)
         if max_display is None:
             r = self.conn.execute(
                 "SELECT MAX(year) FROM premium_cv WHERE code=? AND cv_per_unit>0",
